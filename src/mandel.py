@@ -3,6 +3,7 @@ import sys
 import pygame
 import datetime
 import argparse
+import mandely
 from pygame.locals import *
 import numpy as np
 from timeit import default_timer as timer
@@ -24,6 +25,7 @@ def mandel(x, y, max_iters):
 # @autojit
 def create_fractal(min_x, max_x, min_y, max_y, image, screen, iters):
     start = timer()
+    print("%f < x < %f, %f < y < %f" % (min_x, max_x, min_y, max_y))
     print("Mandelbrot set plotting...")
     height = image.shape[0]
     width = image.shape[1]
@@ -33,32 +35,36 @@ def create_fractal(min_x, max_x, min_y, max_y, image, screen, iters):
         real = min_x + x * pixel_size_x
         for y in range(height):
             imag = min_y + y * pixel_size_y
-            res = mandel(real, imag, iters)
+            # res = mandel(real, imag, iters)
+            res = mandely.mandel(real, imag, iters)  # Cython
             if res < iters:
                 color = (0, (res * 10) % 255, 255)
             else:
-                color = (res, 0, 0)  # マンデルブロ集合に属している
+                color = (0, 0, 0)  # マンデルブロ集合に属している
             plot_mandel(x, y, color, screen)
     dt = timer() - start
     print("Mandel created in %f s" % dt)
 
 
 def plot_mandel(x, y, color, screen):
-    pygame.draw.line(screen, color, (x, y), (x, y+1))
+    pygame.draw.line(screen, color, (x, y), (x, y))
 
 
-def main(width, height):
+def main(width, height, min_x, max_x, min_y, max_y, iters):
     screen_size = width, height
-    min_x, max_x = -2.0, 1.0
-    min_y, max_y = -1.5, 1.5
-    iters = 100
+    # min_x, max_x = -2.0, 1.0
+    # min_y, max_y = -1.5, 1.5
+    # iters = 30               # 反復回数
+    zooming = 1.5            # ズーム率
     pygame.init()
     screen = pygame.display.set_mode(
         screen_size, HWSURFACE | DOUBLEBUF | RESIZABLE)
     pygame.display.set_caption(sys.argv[0] + " "
                                + str(width) + " x " + str(height))
     image = np.zeros((height, width), dtype=np.uint8)
+    
     create_fractal(min_x, max_x, min_y, max_y, image, screen, iters)
+    sysfont = pygame.font.SysFont(None, (int)((width * height) / 25000))
 
     while True:
         for event in pygame.event.get():
@@ -79,20 +85,20 @@ def main(width, height):
                     create_fractal(min_x, max_x, min_y, max_y,
                                    image, screen, iters)
                 elif event.key == K_i:
-                    # Zoom in by 2x
-                    min_x /= 2
-                    max_x /= 2
-                    min_y /= 2
-                    max_y /= 2
+                    # Zoom in
+                    min_x /= zooming
+                    max_x /= zooming
+                    min_y /= zooming
+                    max_y /= zooming
                     print("Zoom in")
                     create_fractal(min_x, max_x, min_y, max_y,
                                    image, screen, iters)
                 elif event.key == K_o:
-                    # Zoom out by 2x
-                    min_x /= 2
-                    max_x /= 2
-                    min_y /= 2
-                    max_y /= 2
+                # Zoom out
+                    min_x *= zooming
+                    max_x *= zooming
+                    min_y *= zooming
+                    max_y *= zooming
                     print("Zoom out")
                     create_fractal(min_x, max_x, min_y, max_y,
                                    image, screen, iters)
@@ -132,7 +138,10 @@ def main(width, height):
                     print("height: %f width: %f" % (height, width))
                     create_fractal(min_x, max_x, min_y, max_y,
                                    image, screen, iters)
-                    
+
+                zahyo = "{0} < x < {1}, {2} < y < {3}".format(min_x, max_x, min_y, max_y)
+                st = sysfont.render(zahyo, True, (255, 255, 255))
+                screen.blit(st, (20, 30))
                 pygame.display.update()
 
 
@@ -152,9 +161,20 @@ if __name__ == "__main__":
     '''    
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--width', type=int, default=720,
-                        help="Width of the screen size")
+                        help="スクリーンの幅 デフォルト値:720")
     parser.add_argument('--height', type=int, default=480,
-                        help="Height of the screen size")
+                        help="スクリーンの高さ デフォルト値:480")
 
+    parser.add_argument('--minx', type=float, default=-2.0,
+                        help="xの最小値 デフォルト値:2.0")
+    parser.add_argument('--maxx', type=float, default=1.0,
+                        help="xの最大値 デフォルト値:1.0")
+    parser.add_argument('--miny', type=float, default=-1.5,
+                        help="yの最小値 デフォルト値:-1.5")
+    parser.add_argument('--maxy', type=float, default=1.5,
+                        help="yの最大値 デフォルト値:1.5")
+    parser.add_argument('--iters', type=int, default=30,
+                        help="反復回数 デフォルト値:30回"
+                        )
     args = parser.parse_args()
-    main(args.width, args.height)
+    main(args.width, args.height, args.minx, args.maxx, args.miny, args.maxy, args.iters)

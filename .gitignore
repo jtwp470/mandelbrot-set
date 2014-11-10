@@ -5,3 +5,9 @@ bin/
 include/
 lib/
 .Python
+build/
+*.so
+*.c
+.DS_Store
+DS_Store
+doc/
